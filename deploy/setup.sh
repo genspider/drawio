@@ -18,4 +18,4 @@ git config user.name "Render CI"
 git config user.email "ci@render.invalid"
 
 # 应用 patch
-git am < "${patchdir}/integration-${version}.patch"
+git apply < "${patchdir}/integration-${version}.patch"
