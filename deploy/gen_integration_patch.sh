@@ -1,11 +1,12 @@
-# 当前所在目录
-workdir=$(dirname $(realpath $0))
+#!/bin/bash
 set -x
 
-patchdir=${workdir}/patches
-mkdir -p ${patchdir}
+workdir=$(dirname "$(realpath "$0")")
+patchdir="${workdir}/patches"
+version=$(cat "${workdir}/../VERSION")
 
-version=`cat ${workdir}/../VERSION`
-git format-patch -1 --stdout > ${patchdir}/integration-${version}.patch
+mkdir -p "${patchdir}"
+
+git format-patch -1 --stdout > "${patchdir}/integration-${version}.patch"
 
 ls -al ${patchdir} | grep ${version}

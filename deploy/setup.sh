@@ -1,11 +1,21 @@
-# 当前所在目录
-workdir=$(dirname $(realpath $0))
+#!/bin/bash
 set -x
 
-patchdir=${workdir}/patches
-mkdir -p ${patchdir}
+workdir=$(dirname "$(realpath "$0")")
+patchdir="${workdir}/patches"
+version=$(cat "${workdir}/../VERSION")
 
-version=`cat ${workdir}/../VERSION`
-ls -al ${patchdir} | grep ${version}
+mkdir -p "${patchdir}"
 
-git am < ${patchdir}/integration-${version}.patch
+# 确保 patch 存在
+if [[ ! -f "${patchdir}/integration-${version}.patch" ]]; then
+  echo "ERROR: Patch file not found: integration-${version}.patch" >&2
+  exit 1
+fi
+
+# 设置 Git 用户身份（必须！）
+git config user.name "Render CI"
+git config user.email "ci@render.invalid"
+
+# 应用 patch
+git am < "${patchdir}/integration-${version}.patch"
