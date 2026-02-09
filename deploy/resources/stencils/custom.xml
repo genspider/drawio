@@ -1,0 +1,46 @@
+<shapes name="mxgraph.custom">
+<!-- ==================== 基础形状 ==================== -->
+
+<shape name="Func Node" h="70" w="160" aspect="variable" strokewidth="inherit">
+  <connections>
+    <constraint x="0.5" y="0"/>
+    <constraint x="0.5" y="1"/>
+    <constraint x="0" y="0.5"/>
+    <constraint x="1" y="0.5"/>
+  </connections>
+
+  <background>
+    <!-- 标题栏背景: 深蓝色 -->
+    <rect x="0" y="0" w="160" h="70"/>
+    <fillcolor color="#3B82F6"/>
+    <fillstroke/>
+  </background>
+
+  <foreground>
+    <!-- 内容区域背景: 白色 -->
+    <save/>
+    <rect x="0" y="24" w="160" h="46"/>
+    <fillcolor color="#FFFFFF"/>
+    <fillstroke/>
+    <restore/>
+
+    <!-- 标题文本 -->
+    <save/>
+    <fontstyle style="1"/>  <!-- 粗体 -->
+    <fontsize size="12"/>
+    <fontfamily>Arial</fontfamily>
+    <text str="%idx1_name%" x="80" y="12" align="center" valign="middle" placeholders="1"/>
+    <restore/>
+
+    <!-- 内容描述文本 -->
+    <save/>
+    <fontcolor color="#333333"/>
+    <fontstyle style="0"/>  <!-- 常规 -->
+    <fontsize size="11"/>
+    <fontfamily>Arial</fontfamily>
+    <text str="%idx1_description%" x="80" y="47" align="center" valign="bottom" placeholders="1"/>
+    <restore/>
+  </foreground>
+</shape>
+
+</shapes>

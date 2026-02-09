@@ -2,6 +2,7 @@
 set -x
 
 workdir=$(dirname "$(realpath "$0")")
+export rootdir="${workdir}/.."
 patchdir="${workdir}/patches"
 version=$(cat "${workdir}/../VERSION")
 
@@ -19,3 +20,5 @@ git config user.email "ci@render.invalid"
 
 # 应用 patch
 git apply < "${patchdir}/integration-${version}.patch"
+
+bash "${workdir}/resources/setup.sh"

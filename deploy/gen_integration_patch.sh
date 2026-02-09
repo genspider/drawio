@@ -2,6 +2,7 @@
 set -x
 
 workdir=$(dirname "$(realpath "$0")")
+export rootdir="${workdir}/.."
 patchdir="${workdir}/patches"
 version=$(cat "${workdir}/../VERSION")
 
