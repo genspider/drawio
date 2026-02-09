@@ -1,0 +1,62 @@
+From b8c988fc05a7d9f9557fba9e94ac5a35e4644821 Mon Sep 17 00:00:00 2001
+From: liuyu <765934517@qq.com>
+Date: Mon, 9 Feb 2026 10:49:31 +0800
+Subject: [PATCH] =?UTF-8?q?29.3.6=E9=9B=86=E6=88=90patch?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ patches/integration-29.3.6.patch | 40 ++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 patches/integration-29.3.6.patch
+
+diff --git a/patches/integration-29.3.6.patch b/patches/integration-29.3.6.patch
+new file mode 100644
+index 00000000..1f618425
+--- /dev/null
++++ b/patches/integration-29.3.6.patch
+@@ -0,0 +1,40 @@
++From 01eadfa55042e36b5c6f442a662d6c76f0029429 Mon Sep 17 00:00:00 2001
++From: liuyu <765934517@qq.com>
++Date: Mon, 9 Feb 2026 10:39:09 +0800
++Subject: [PATCH] =?UTF-8?q?=E6=94=AF=E6=8C=81=E4=BB=8E=E5=A4=96=E9=83=A8?=
++ =?UTF-8?q?=E5=8A=A0=E8=BD=BD=E8=87=AA=E5=AE=9A=E4=B9=89=E4=BE=A7=E8=BE=B9?=
++ =?UTF-8?q?=E6=A0=8F=E9=85=8D=E7=BD=AE?=
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++---
++ src/main/webapp/js/bootstrap.js | 12 ++++++++++++
++ 1 file changed, 12 insertions(+)
++
++diff --git a/src/main/webapp/js/bootstrap.js b/src/main/webapp/js/bootstrap.js
++index 4b3022f1..989a078a 100644
++--- a/src/main/webapp/js/bootstrap.js
+++++ b/src/main/webapp/js/bootstrap.js
++@@ -240,6 +240,18 @@ var mxScriptsLoaded = false, mxWinLoaded = false;
++ 
++ function checkAllLoaded()
++ {
+++    // 支持从外部加载自定义侧边栏配置
+++    (function() {
+++        if (urlParams['CUSTOM_SIDEBAR_URL']) {
+++            // 获取host，需要先解码URI组件
+++            var decodedUrl = decodeURIComponent(urlParams['CUSTOM_SIDEBAR_URL']);
+++            var urlList = decodedUrl.split('/')
+++            urlList.pop();
+++            window.STENCIL_PATH = urlList.join('/') + '/stencils';
+++            console.log('STENCIL_PATH:', window.STENCIL_PATH);
+++        }
+++    })();
+++
++     if (mxScriptsLoaded && mxWinLoaded)
++     {
++         App.main();				
++-- 
++2.49.0.windows.1
++
+-- 
+2.49.0.windows.1
+
