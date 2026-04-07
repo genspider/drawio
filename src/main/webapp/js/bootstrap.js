@@ -240,6 +240,18 @@ var mxScriptsLoaded = false, mxWinLoaded = false;
 
 function checkAllLoaded()
 {
+    // 支持从外部加载自定义侧边栏配置
+    (function() {
+        if (urlParams['CUSTOM_SIDEBAR_URL']) {
+            // 获取host，需要先解码URI组件
+            var decodedUrl = decodeURIComponent(urlParams['CUSTOM_SIDEBAR_URL']);
+            var urlList = decodedUrl.split('/')
+            urlList.pop();
+            window.STENCIL_PATH = urlList.join('/') + '/stencils';
+            console.log('STENCIL_PATH:', window.STENCIL_PATH);
+        }
+    })();
+
     if (mxScriptsLoaded && mxWinLoaded)
     {
         App.main();				
