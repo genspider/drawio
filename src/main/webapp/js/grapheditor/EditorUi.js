@@ -4057,7 +4057,8 @@ EditorUi.prototype.isDiagramEmpty = function()
 EditorUi.prototype.isSelectionAllowed = function(evt)
 {
 	return mxEvent.getSource(evt).nodeName == 'SELECT' ||
-		mxEvent.getSource(evt).nodeName == 'INPUT';
+		mxEvent.getSource(evt).nodeName == 'INPUT' ||
+		mxEvent.getSource(evt).nodeName == 'TEXTAREA';
 };
 
 /**

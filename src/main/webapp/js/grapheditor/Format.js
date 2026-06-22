@@ -7423,18 +7423,6 @@ DataFormatPanel.prototype.refresh = function()
 		value = obj;
 	}
 
-	// Read metaData style for editable flags
-	var meta = {};
-	try
-	{
-		var temp = mxUtils.getValue(graph.getCurrentCellStyle(cell), 'metaData', null);
-		if (temp != null)
-		{
-			meta = JSON.parse(temp);
-		}
-	}
-	catch (e) {}
-
 	var style = graph.getCellStyle(cell);
 	var isLayer = graph.getModel().getParent(cell) == graph.getModel().getRoot();
 
@@ -7451,9 +7439,43 @@ DataFormatPanel.prototype.refresh = function()
 		}
 	}
 
-	// Sort: label last, rest alphabetical
-	attrs.sort(function(a, b)
+	// Categorize: basic (idx-prefixed non-in/out + bare), input, output
+	// Attribute naming: idxN_in[_PROP], idxN_out[_PROP], idxN_xxx, bare xxx
+	var idxRe = /^idx(\d+)_(.*)$/;
+	var basic = [], inputs = [], outputs = [];
+
+	for (var i = 0; i < attrs.length; i++)
 	{
+		var a = attrs[i];
+		var m = a.name.match(idxRe);
+		if (m)
+		{
+			var num = parseInt(m[1], 10);
+			var suffix = m[2];
+			if (suffix === 'in' || suffix.indexOf('in_') === 0)
+			{
+				inputs.push({name: a.name, value: a.value, idx: num});
+				continue;
+			}
+			if (suffix === 'out' || suffix.indexOf('out_') === 0)
+			{
+				outputs.push({name: a.name, value: a.value, idx: num});
+				continue;
+			}
+		}
+		basic.push(a);
+	}
+
+	// Sort: inputs/outputs by idx, basic: idx-prefixed first (by idx), then bare alphabetical
+	inputs.sort(function(a, b) { return a.idx - b.idx; });
+	outputs.sort(function(a, b) { return a.idx - b.idx; });
+	basic.sort(function(a, b)
+	{
+		var ma = a.name.match(idxRe);
+		var mb = b.name.match(idxRe);
+		if (ma && mb) return parseInt(ma[1], 10) - parseInt(mb[1], 10);
+		if (ma) return -1;
+		if (mb) return 1;
 		if (a.name == 'label') return 1;
 		if (b.name == 'label') return -1;
 		return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
@@ -7464,33 +7486,55 @@ DataFormatPanel.prototype.refresh = function()
 		EditDataDialog.getDisplayIdForCell != null) ?
 		EditDataDialog.getDisplayIdForCell(ui, cell) : null;
 
-	// Build attribute table
-	var table = document.createElement('table');
-	table.style.width = '100%';
-	table.style.borderCollapse = 'collapse';
+	// ── 基本信息 ──
+	var mainSection = this.addSection(this.container, '基本信息', true);
 
 	if (id != null)
 	{
-		var row = table.insertRow();
-		var idNameCell = row.insertCell();
-		idNameCell.style.width = '30%';
-		idNameCell.style.fontSize = '11px';
-		idNameCell.style.verticalAlign = 'top';
-		idNameCell.style.padding = '4px 2px';
-		mxUtils.write(idNameCell, mxResources.get('id') + ':');
-
-		var idValueCell = row.insertCell();
-		idValueCell.style.fontSize = '11px';
-		idValueCell.style.padding = '4px 2px';
-		mxUtils.write(idValueCell, id);
+		var idRow = document.createElement('div');
+		idRow.className = 'geFormatEntry';
+		var idSpan = document.createElement('span');
+		idSpan.style.fontSize = '11px';
+		idSpan.style.color = '#606060';
+		mxUtils.write(idSpan, mxResources.get('id') + ': ' + id);
+		idRow.appendChild(idSpan);
+		mainSection.appendChild(idRow);
 	}
 
-	for (var i = 0; i < attrs.length; i++)
+	for (var i = 0; i < basic.length; i++)
 	{
-		this.addAttributeRow(table, attrs[i].name, attrs[i].value, cell);
+		this.addAttributeBlock(mainSection, basic[i].name, basic[i].value, cell);
 	}
 
-	this.container.appendChild(table);
+	// ── 输入 ──
+	if (inputs.length > 0)
+	{
+		// Divider between sections
+		if (basic.length > 0)
+		{
+			this.container.appendChild(this.createDivider());
+		}
+		var inSection = this.addSection(this.container, '输入信息');
+		for (var i = 0; i < inputs.length; i++)
+		{
+			this.addAttributeBlock(inSection, inputs[i].name, inputs[i].value, cell);
+		}
+	}
+
+	// ── 输出 ──
+	if (outputs.length > 0)
+	{
+		// Divider between sections
+		if (basic.length > 0 || inputs.length > 0)
+		{
+			this.container.appendChild(this.createDivider());
+		}
+		var outSection = this.addSection(this.container, '输出信息');
+		for (var i = 0; i < outputs.length; i++)
+		{
+			this.addAttributeBlock(outSection, outputs[i].name, outputs[i].value, cell);
+		}
+	}
 
 	// Add property section
 	this.addAddPropertySection(cell);
@@ -7500,77 +7544,178 @@ DataFormatPanel.prototype.refresh = function()
 	{
 		this.addPlaceholdersOption(cell);
 	}
-	
 };
 
-DataFormatPanel.prototype.addAttributeRow = function(table, name, val, cell)
+/**
+ * Creates a thin horizontal divider line between sections.
+ */
+DataFormatPanel.prototype.createDivider = function()
 {
-	var ui = this.editorUi;
-	var graph = ui.editor.graph;
+	var div = document.createElement('div');
+	div.style.borderTop = '1px solid #d0d0d0';
+	div.style.margin = '4px 0';
+	return div;
+};
 
-	var row = table.insertRow();
+/**
+ * Creates a section with title and returns the content container.
+ */
+DataFormatPanel.prototype.addSection = function(container, title, collapsed)
+{
+	var section = document.createElement('div');
+	section.className = 'geFormatSection';
 
-	var nameCell = row.insertCell();
-	nameCell.style.width = '30%';
-	nameCell.style.fontSize = '11px';
-	nameCell.style.verticalAlign = 'top';
-	nameCell.style.padding = '4px 2px';
-	mxUtils.write(nameCell, name + ':');
+	var titleDiv = document.createElement('div');
+	titleDiv.className = 'geFormatSectionTitle';
+	titleDiv.style.cursor = 'pointer';
+	titleDiv.style.userSelect = 'none';
+	titleDiv.style.display = 'flex';
+	titleDiv.style.alignItems = 'center';
 
-	var valueCell = row.insertCell();
-	valueCell.style.padding = '2px';
-	valueCell.style.position = 'relative';
+	// Collapse arrow
+	var arrow = document.createElement('span');
+	arrow.style.display = 'inline-block';
+	arrow.style.width = '12px';
+	arrow.style.marginRight = '4px';
+	arrow.style.fontSize = '9px';
+	arrow.style.transition = 'transform 0.15s';
+	mxUtils.write(arrow, collapsed ? '▶' : '▼');
+	titleDiv.appendChild(arrow);
 
+	var titleText = document.createElement('span');
+	mxUtils.write(titleText, title);
+	titleDiv.appendChild(titleText);
+	section.appendChild(titleDiv);
+
+	// Content wrapper for collapse/expand
+	var contentDiv = document.createElement('div');
+	contentDiv.style.overflow = 'hidden';
+	if (collapsed) contentDiv.style.display = 'none';
+	section.appendChild(contentDiv);
+
+	mxEvent.addListener(titleDiv, 'click', function()
+	{
+		var isHidden = contentDiv.style.display === 'none';
+		contentDiv.style.display = isHidden ? '' : 'none';
+		arrow.textContent = isHidden ? '▼' : '▶';
+	});
+
+	container.appendChild(section);
+	return contentDiv;
+};
+
+/**
+ * Renders one attribute as a block: label above, textarea + delete below.
+ */
+DataFormatPanel.prototype.addAttributeBlock = function(container, name, val, cell)
+{
+	var graph = this.editorUi.editor.graph;
+	var displayName = name;
+
+	// Strip idx prefix and in_/out_ prefix for cleaner display
+	var tmp = name.replace(/^idx\d+_/, '');
+	tmp = tmp.replace(/^(?:in|out)_/, '');
+	if (tmp != name) displayName = tmp;
+
+	var block = document.createElement('div');
+	block.className = 'geFormatEntry';
+	block.style.flexDirection = 'column';
+	block.style.alignItems = 'stretch';
+	block.style.padding = '4px 12px 4px 0';
+	block.style.minHeight = '0';
+	block.style.borderBottom = 'none';
+
+	// Label row (name + delete)
+	var labelRow = document.createElement('div');
+	labelRow.style.display = 'flex';
+	labelRow.style.alignItems = 'center';
+	labelRow.style.justifyContent = 'space-between';
+	labelRow.style.marginBottom = '2px';
+
+	var label = document.createElement('span');
+	label.style.fontSize = '12px';
+	label.style.color = '#404040';
+	label.style.fontWeight = '500';
+	label.style.userSelect = 'none';
+	mxUtils.write(label, displayName + ':');
+	labelRow.appendChild(label);
+
+	// // Delete button
+	// var removeBtn = document.createElement('a');
+	// removeBtn.className = 'geButton';
+	// removeBtn.setAttribute('title', mxResources.get('delete'));
+	// removeBtn.style.flex = '0 0 auto';
+	// removeBtn.style.width = '14px';
+	// removeBtn.style.height = '14px';
+	// removeBtn.style.cursor = 'pointer';
+	// removeBtn.style.display = 'flex';
+	// removeBtn.style.alignItems = 'center';
+	// removeBtn.style.justifyContent = 'center';
+	// removeBtn.style.padding = '0';
+	// removeBtn.style.margin = '0';
+	// removeBtn.style.border = '1px solid transparent';
+	// removeBtn.style.borderRadius = '2px';
+	// removeBtn.style.opacity = '0.4';
+
+	// var img = mxUtils.createImage(Dialog.prototype.closeImage);
+	// img.style.width = '8px';
+	// img.style.height = '8px';
+	// removeBtn.appendChild(img);
+
+	// mxEvent.addListener(removeBtn, 'mouseover', function()
+	// {
+	// 	removeBtn.style.opacity = '1';
+	// 	removeBtn.style.borderColor = '#a0a0a0';
+	// });
+	// mxEvent.addListener(removeBtn, 'mouseout', function()
+	// {
+	// 	removeBtn.style.opacity = '0.4';
+	// 	removeBtn.style.borderColor = 'transparent';
+	// });
+
+	// mxEvent.addListener(removeBtn, 'click', function()
+	// {
+	// 	var currentVal = graph.getModel().getValue(cell);
+	// 	if (!mxUtils.isNode(currentVal)) return;
+	// 	var cloned = currentVal.cloneNode(true);
+	// 	cloned.removeAttribute(name);
+	// 	graph.getModel().setValue(cell, cloned);
+	// });
+
+	// labelRow.appendChild(removeBtn);
+	block.appendChild(labelRow);
+
+	// Textarea
 	var textarea = document.createElement('textarea');
 	textarea.style.width = '100%';
 	textarea.style.boxSizing = 'border-box';
 	textarea.style.resize = 'vertical';
-	textarea.style.minHeight = '20px';
+	textarea.style.minHeight = '28px';
+	textarea.style.fontSize = '13px';
+	textarea.style.lineHeight = '1.4';
+	textarea.style.padding = '3px 4px';
+	textarea.style.pointerEvents = 'auto';
 	textarea.value = val;
 	textarea.setAttribute('rows', (val.indexOf('\n') > 0) ? '3' : '1');
+	// Multi-line tooltip: show up to 4 lines
+	(function() {
+		var lines = val.split('\n');
+		var tip = lines.slice(0, 4).join('&#10;');
+		if (lines.length > 4) tip += '&#10;...';
+		textarea.setAttribute('title', tip);
+	})();
 
-	// Instant write on change
-	mxEvent.addListener(textarea, 'change', mxUtils.bind(this, function()
+	mxEvent.addListener(textarea, 'change', function()
 	{
 		var currentVal = graph.getModel().getValue(cell);
 		if (!mxUtils.isNode(currentVal)) return;
-
 		var cloned = currentVal.cloneNode(true);
 		cloned.setAttribute(name, textarea.value);
 		graph.getModel().setValue(cell, cloned);
-	}));
-
-	valueCell.appendChild(textarea);
-
-	// Delete button
-	var removeBtn = document.createElement('a');
-	var img = mxUtils.createImage(Dialog.prototype.closeImage);
-	img.style.height = '9px';
-	img.style.fontSize = '9px';
-	img.style.marginBottom = (mxClient.IS_IE11) ? '-1px' : '5px';
-
-	removeBtn.className = 'geButton';
-	removeBtn.setAttribute('title', mxResources.get('delete'));
-	removeBtn.style.position = 'absolute';
-	removeBtn.style.top = '2px';
-	removeBtn.style.right = '2px';
-	removeBtn.style.margin = '0px';
-	removeBtn.style.width = '9px';
-	removeBtn.style.height = '9px';
-	removeBtn.style.cursor = 'pointer';
-	removeBtn.appendChild(img);
-
-	mxEvent.addListener(removeBtn, 'click', function()
-	{
-		var currentVal = graph.getModel().getValue(cell);
-		if (!mxUtils.isNode(currentVal)) return;
-
-		var cloned = currentVal.cloneNode(true);
-		cloned.removeAttribute(name);
-		graph.getModel().setValue(cell, cloned);
 	});
 
-	valueCell.appendChild(removeBtn);
+	block.appendChild(textarea);
+	container.appendChild(block);
 };
 
 DataFormatPanel.prototype.addAddPropertySection = function(cell)
@@ -7578,22 +7723,46 @@ DataFormatPanel.prototype.addAddPropertySection = function(cell)
 	var ui = this.editorUi;
 	var graph = ui.editor.graph;
 
-	var div = document.createElement('div');
-	div.style.display = 'flex';
-	div.style.alignItems = 'center';
-	div.style.marginTop = '8px';
-	div.style.padding = '4px 0';
+	var section = document.createElement('div');
+	section.className = 'geFormatSection';
+
+	var entry = document.createElement('div');
+	entry.className = 'geFormatEntry';
+	entry.style.flexDirection = 'column';
+	entry.style.alignItems = 'stretch';
+	entry.style.padding = '4px 12px 4px 0';
+	entry.style.minHeight = '0';
+	entry.style.borderBottom = 'none';
+
+	// Label
+	var addLabel = document.createElement('span');
+	addLabel.style.fontSize = '12px';
+	addLabel.style.color = '#404040';
+	addLabel.style.fontWeight = '500';
+	addLabel.style.userSelect = 'none';
+	addLabel.style.marginBottom = '2px';
+	mxUtils.write(addLabel, mxResources.get('addProperty') + ':');
+	entry.appendChild(addLabel);
+
+	// Input row (input + button)
+	var inputRow = document.createElement('div');
+	inputRow.style.display = 'flex';
+	inputRow.style.alignItems = 'center';
+	inputRow.style.gap = '4px';
+	inputRow.style.width = '100%';
+	inputRow.style.boxSizing = 'border-box';
+	inputRow.style.overflow = 'hidden';
 
 	var nameInput = document.createElement('input');
 	nameInput.setAttribute('placeholder', mxResources.get('enterPropertyName'));
 	nameInput.setAttribute('type', 'text');
 	nameInput.style.flex = '1';
+	nameInput.style.fontSize = '13px';
+	nameInput.style.padding = '3px 4px';
 	nameInput.style.boxSizing = 'border-box';
-	nameInput.style.padding = '4px';
-	nameInput.style.borderWidth = '1px';
-	nameInput.style.borderStyle = 'solid';
+	nameInput.style.textAlign = 'left';
 
-	var addBtn = mxUtils.button(mxResources.get('addProperty'), function()
+	var addBtn = mxUtils.button(mxResources.get('add'), function()
 	{
 		var name = nameInput.value.trim();
 		if (name.length > 0 && name != 'label' && name.indexOf(':') < 0)
@@ -7616,8 +7785,9 @@ DataFormatPanel.prototype.addAddPropertySection = function(cell)
 	});
 
 	addBtn.className = 'geBtn';
-	addBtn.style.marginLeft = '4px';
 	addBtn.style.whiteSpace = 'nowrap';
+	addBtn.style.fontSize = '12px';
+	addBtn.style.padding = '2px 8px';
 
 	mxEvent.addListener(nameInput, 'keypress', function(e)
 	{
@@ -7639,9 +7809,11 @@ DataFormatPanel.prototype.addAddPropertySection = function(cell)
 	// Start with disabled button
 	addBtn.setAttribute('disabled', 'disabled');
 
-	div.appendChild(nameInput);
-	div.appendChild(addBtn);
-	this.container.appendChild(div);
+	inputRow.appendChild(nameInput);
+	inputRow.appendChild(addBtn);
+	entry.appendChild(inputRow);
+	section.appendChild(entry);
+	this.container.appendChild(section);
 };
 
 DataFormatPanel.prototype.addPlaceholdersOption = function(cell)
@@ -7649,15 +7821,15 @@ DataFormatPanel.prototype.addPlaceholdersOption = function(cell)
 	var ui = this.editorUi;
 	var graph = ui.editor.graph;
 
-	var div = document.createElement('div');
-	div.style.marginTop = '8px';
-	div.style.padding = '4px 0';
-	div.style.display = 'flex';
-	div.style.alignItems = 'center';
+	var section = document.createElement('div');
+	section.className = 'geFormatSection';
+
+	var entry = document.createElement('div');
+	entry.className = 'geFormatEntry';
 
 	var input = document.createElement('input');
 	input.setAttribute('type', 'checkbox');
-	input.style.marginRight = '6px';
+	input.style.margin = '0 6px 0 0';
 
 	var currentVal = graph.getModel().getValue(cell);
 	if (mxUtils.isNode(currentVal) && currentVal.getAttribute('placeholders') == '1')
@@ -7683,9 +7855,10 @@ DataFormatPanel.prototype.addPlaceholdersOption = function(cell)
 		graph.getModel().setValue(cell, cloned);
 	});
 
-	div.appendChild(input);
-	mxUtils.write(div, mxResources.get('placeholders'));
-	this.container.appendChild(div);
+	entry.appendChild(input);
+	mxUtils.write(entry, mxResources.get('placeholders'));
+	section.appendChild(entry);
+	this.container.appendChild(section);
 };
 
 DataFormatPanel.prototype.destroy = function()
