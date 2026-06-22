@@ -178,7 +178,45 @@ EditorUi = function(editor, container, lightbox)
 		{
 			graph.pasteCellStyles(evt.getProperty('cells'));
 		});
-		
+
+		// When cells are added to a parent with fillChild=1,
+		// auto-set fillChild=1 on the new child cells and update geometry.
+		graph.addListener(mxEvent.CELLS_ADDED, function(sender, evt)
+		{
+			var cells = evt.getProperty('cells');
+			var parent = evt.getProperty('parent');
+			var changed = [];
+
+			if (cells != null && parent != null &&
+				graph.getModel().isVertex(parent) &&
+				mxUtils.getValue(graph.getCellStyle(parent), 'fillChild', '0') == '1')
+			{
+				graph.getModel().beginUpdate();
+				try
+				{
+					for (var i = 0; i < cells.length; i++)
+					{
+						if (graph.getModel().isVertex(cells[i]) &&
+							mxUtils.getValue(graph.getCellStyle(cells[i]), 'fillChild', '0') != '1')
+						{
+							graph.setCellStyles('fillChild', '1', [cells[i]]);
+							changed.push(cells[i]);
+						}
+					}
+				}
+				finally
+				{
+					graph.getModel().endUpdate();
+				}
+
+				// Update geometry for newly added fillChild cells
+				if (changed.length > 0)
+				{
+					Editor.prototype.updateFillChildGeometryForCells(graph, changed);
+				}
+			}
+		});
+
 		this.createDivs();
 		this.createUi();
 		this.refresh();

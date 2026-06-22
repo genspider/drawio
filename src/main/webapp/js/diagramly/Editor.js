@@ -769,7 +769,13 @@
             {
                 if (state.vertices.length != 1) return false;
                 var graph = format.editorUi.editor.graph;
-                var par = graph.getModel().getParent(state.vertices[0]);
+                var cell = state.vertices[0];
+
+                // Always show if cell is a container (has children or swimlane)
+                if (graph.isContainer(cell)) return true;
+
+                // For leaf cells, only show if parent is a vertex
+                var par = graph.getModel().getParent(cell);
                 if (par == null || !graph.getModel().isVertex(par)) return false;
                 var parStyle = graph.getCellStyle(par);
                 return parStyle['childLayout'] != 'stackLayout';
@@ -779,19 +785,24 @@
                 var cells = graph.getSelectionCells();
                 var constraintKeys = ['movable', 'rotatable', 'cloneable',
                     'deletable', 'resizable', 'connectable'];
-                
+                var isContainerCell = cells.length == 1 &&
+                    graph.getModel().isVertex(cells[0]) &&
+                    graph.isContainer(cells[0]);
+
                 graph.model.beginUpdate();
                 try
                 {
                     if (value == 1)
                     {
-                        // fillChild cells should not be independently
-                        // moved, rotated, cloned, deleted, resized, or connected
-                        for (var k = 0; k < constraintKeys.length; k++)
+                        // Only set constraints for non-container (leaf) fillChild cells
+                        if (!isContainerCell)
                         {
-                            graph.setCellStyles(constraintKeys[k], '0', cells);
+                            for (var k = 0; k < constraintKeys.length; k++)
+                            {
+                                graph.setCellStyles(constraintKeys[k], '0', cells);
+                            }
                         }
-                        
+
                         Editor.prototype.updateFillChildGeometryForCells(graph, cells);
                     }
                     else
@@ -820,7 +831,7 @@
         {
         	var cell = (state.vertices.length > 0 && state.edges.length == 0) ? state.vertices[0] : null;
         	var graph = format.editorUi.editor.graph;
-        	
+
         	return graph.isCellConnectable(cell);
         }, isVisible: function(state, format)
         {

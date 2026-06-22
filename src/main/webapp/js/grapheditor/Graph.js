@@ -6702,7 +6702,8 @@ Graph.prototype.isCellConnectable = function(cell)
 {
 	var style = this.getCurrentCellStyle(cell);
 
-	return !this.isCellLocked(this.getLayerForCell(cell)) &&
+	return !this.isFillChildCell(cell) &&
+		!this.isCellLocked(this.getLayerForCell(cell)) &&
 		((style['connectable'] != null) ? style['connectable'] != '0' :
 		mxGraph.prototype.isCellConnectable.apply(this, arguments));
 };
@@ -6803,6 +6804,43 @@ Graph.prototype.isCellFoldable = function(cell)
 		(!this.isCellLocked(cell) &&
 		((this.isContainer(cell) && style['collapsible'] != '0') ||
 		(!this.isContainer(cell) && style['collapsible'] == '1'))));
+};
+
+/**
+ * Returns true if the given cell has fillChild style.
+ */
+Graph.prototype.isFillChildCell = function(cell)
+{
+	var style = this.getCurrentCellStyle(cell);
+	return mxUtils.getValue(style, 'fillChild', '0') == '1' &&
+		!this.isContainer(cell);
+};
+
+/**
+ * Disables rotatable for fillChild cells.
+ */
+Graph.prototype.isCellRotatable = function(cell)
+{
+	if (this.isFillChildCell(cell)) return false;
+	return mxGraph.prototype.isCellRotatable.apply(this, arguments);
+};
+
+/**
+ * Disables cloneable for fillChild cells.
+ */
+Graph.prototype.isCellCloneable = function(cell)
+{
+	if (this.isFillChildCell(cell)) return false;
+	return mxGraph.prototype.isCellCloneable.apply(this, arguments);
+};
+
+/**
+ * Disables deletable for fillChild cells.
+ */
+Graph.prototype.isCellDeletable = function(cell)
+{
+	if (this.isFillChildCell(cell)) return false;
+	return mxGraph.prototype.isCellDeletable.apply(this, arguments);
 };
 
 /**
@@ -10233,7 +10271,8 @@ if (typeof mxVertexHandler !== 'undefined')
 		var graphIsCellMovable = Graph.prototype.isCellMovable;
 		Graph.prototype.isCellMovable = function(cell)
 		{
-			if (cell == null || !graphIsCellMovable.apply(this, arguments))
+			if (cell == null || !graphIsCellMovable.apply(this, arguments) ||
+					this.isFillChildCell(cell))
 			{
 				return false;
 			}
@@ -12141,6 +12180,7 @@ if (typeof mxVertexHandler !== 'undefined')
 		 */
 		Graph.prototype.isCellResizable = function(cell)
 		{
+			if (this.isFillChildCell(cell)) return false;
 			var result = mxGraph.prototype.isCellResizable.apply(this, arguments);
 			var style = this.getCurrentCellStyle(cell);
 				
