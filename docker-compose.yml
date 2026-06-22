@@ -1,0 +1,18 @@
+services:
+  build:
+    build:
+      context: ./etc/docker
+      dockerfile: Dockerfile.build
+    container_name: drawio-build
+    working_dir: /app/etc/build
+    command: sh -c "javac -cp . Xml2Js.java && ant -f build.xml"
+    volumes:
+      - .:/app
+
+  drawio:
+    image: nginx:alpine
+    container_name: drawio-dev
+    ports:
+      - "8080:80"
+    volumes:
+      - ./app:/usr/share/nginx/html:ro

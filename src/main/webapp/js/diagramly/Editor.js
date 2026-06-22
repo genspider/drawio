@@ -764,6 +764,49 @@
         },
         {name: 'noLabel', dispName: 'Hide Label', type: 'bool', defVal: false},
         {name: 'labelPadding', dispName: 'Label Padding', type: 'float', defVal: 0},
+        {name: 'fillChild', dispName: 'Fill Container', type: 'bool', defVal: false,
+            isVisible: function(state, format)
+            {
+                if (state.vertices.length != 1) return false;
+                var graph = format.editorUi.editor.graph;
+                var par = graph.getModel().getParent(state.vertices[0]);
+                if (par == null || !graph.getModel().isVertex(par)) return false;
+                var parStyle = graph.getCellStyle(par);
+                return parStyle['childLayout'] != 'stackLayout';
+            },
+            onChange: function(graph, value)
+            {
+                if (value === true)
+                {
+                    var cells = graph.getSelectionCells();
+                    if (cells.length == 1)
+                    {
+                        var cell = cells[0];
+                        var parent = graph.getModel().getParent(cell);
+                        var parGeo = graph.getCellGeometry(parent);
+                        var geo = graph.getCellGeometry(cell);
+
+                        if (parGeo != null && geo != null && !geo.relative)
+                        {
+                            graph.getModel().beginUpdate();
+                            try
+                            {
+                                var newGeo = geo.clone();
+                                newGeo.x = 0;
+                                newGeo.y = 0;
+                                newGeo.width = parGeo.width;
+                                newGeo.height = parGeo.height;
+                                graph.getModel().setGeometry(cell, newGeo);
+                            }
+                            finally
+                            {
+                                graph.getModel().endUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+        },
         {name: 'direction', dispName: 'Direction', type: 'enum', defVal: 'east',
         	enumList: [{val: 'north', dispName: 'North'}, {val: 'east', dispName: 'East'}, {val: 'south', dispName: 'South'}, {val: 'west', dispName: 'West'}]
         },

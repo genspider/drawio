@@ -1,0 +1,168 @@
+<shapes name="mxgraph.custom">
+<!-- ==================== 基础形状 ==================== -->
+
+<shape name="Func Node" h="70" w="160" aspect="variable" strokewidth="inherit">
+  <connections>
+    <constraint x="0.5" y="0"/>
+    <constraint x="0.5" y="1"/>
+    <constraint x="0" y="0.5"/>
+    <constraint x="1" y="0.5"/>
+  </connections>
+
+  <background>
+    <rect x="0" y="0" w="160" h="70"/>
+    <fillcolor color="#3B82F6"/>
+    <fillstroke/>
+  </background>
+
+  <foreground>
+    <save/>
+    <rect x="0" y="24" w="160" h="46"/>
+    <fillcolor color="#FFFFFF"/>
+    <fillstroke/>
+    <restore/>
+
+    <save/>
+    <fontstyle style="1"/>
+    <fontsize size="12"/>
+    <fontfamily>Arial</fontfamily>
+    <fontcolor color="#FFFFFF"/>
+    <text str="%idx1_name%" x="80" y="12" align="center" valign="middle" placeholders="1"/>
+    <restore/>
+
+    <save/>
+    <fontcolor color="#333333"/>
+    <fontstyle style="0"/>
+    <fontsize size="11"/>
+    <fontfamily>Arial</fontfamily>
+    <text str="%idx1_description%" x="80" y="47" align="center" valign="bottom" placeholders="1"/>
+    <restore/>
+  </foreground>
+</shape>
+
+<!-- ==================== 流程控制节点 ==================== -->
+
+<!-- 条件判断节点 (If) - 菱形 -->
+<shape name="If" h="80" w="120" aspect="variable">
+  <connections>
+    <constraint x="0.5" y="0" name="top"/>
+    <constraint x="0.5" y="1" name="bottom"/>
+    <constraint x="0" y="0.5" name="left"/>
+    <constraint x="1" y="0.5" name="right"/>
+  </connections>
+  <background>
+    <!-- 外发光效果 -->
+    <save/>
+    <path>
+      <move x="60" y="4"/>
+      <line x="116" y="40"/>
+      <line x="60" y="76"/>
+      <line x="4" y="40"/>
+      <close/>
+    </path>
+    <fillcolor color="#FBBF24"/>
+    <shadowcolor color="#000000" opacity="30" blur="4" offset="2" angle="45"/>
+    <fillstroke/>
+    <restore/>
+    <!-- 主形状 -->
+    <path>
+      <move x="60" y="0"/>
+      <line x="120" y="40"/>
+      <line x="60" y="80"/>
+      <line x="0" y="40"/>
+      <close/>
+    </path>
+    <fillcolor color="#F59E0B"/>
+  </background>
+</shape>
+
+<!-- 多分支节点 (Switch) - 六边形 -->
+<shape name="Switch" h="100" w="140" aspect="variable">
+  <connections>
+    <constraint x="0" y="0" name="top-left"/>
+    <constraint x="1" y="0" name="top-right"/>
+    <constraint x="0" y="1" name="bottom-left"/>
+    <constraint x="1" y="1" name="bottom-right"/>
+    <constraint x="0" y="0.5" name="left"/>
+    <constraint x="1" y="0.5" name="right"/>
+  </connections>
+  <background>
+    <path>
+      <move x="35" y="0"/>
+      <line x="105" y="0"/>
+      <line x="140" y="50"/>
+      <line x="105" y="100"/>
+      <line x="35" y="100"/>
+      <line x="0" y="50"/>
+      <close/>
+    </path>
+    <fillcolor color="#7C3AED"/>
+    <fillstroke/>
+  </background>
+</shape>
+
+<!-- 调用块节点 (Call Block) - 圆角矩形 -->
+<shape name="Call Block" h="60" w="120" aspect="variable">
+  <connections>
+    <constraint x="0.5" y="0" name="top"/>
+    <constraint x="0.5" y="1" name="bottom"/>
+    <constraint x="0" y="0.5" name="left"/>
+    <constraint x="1" y="0.5" name="right"/>
+  </connections>
+  <background>
+    <rect x="0" y="0" w="120" h="60" rounded="1" arcsize="20"/>
+    <fillcolor color="#3B82F6"/>
+    <fillstroke/>
+  </background>
+  <foreground>
+    <!-- 左侧图标区域 -->
+    <save/>
+    <rect x="4" y="4" w="52" h="52" rounded="1" arcsize="16"/>
+    <fillcolor color="#2563EB"/>
+    <fillstroke/>
+    <restore/>
+    <!-- 调用图标 -->
+    <text str="▶" x="20" y="30" align="center" valign="middle" fontsize="16">
+      <fontcolor color="#FFFFFF"/>
+    </text>
+    <!-- 标签 -->
+    <text str="%idx1_name%" x="60" y="30" align="center" valign="middle" placeholders="1">
+      <font size="11" style="1"/>
+      <fontcolor color="#FFFFFF"/>
+    </text>
+  </foreground>
+</shape>
+
+<!-- 异常捕获节点 (Catch) - 圆角矩形 -->
+<shape name="Catch" h="60" w="120" aspect="variable">
+  <connections>
+    <constraint x="0.5" y="0" name="top"/>
+    <constraint x="0.5" y="1" name="bottom"/>
+    <constraint x="0" y="0.5" name="left"/>
+    <constraint x="1" y="0.5" name="right"/>
+  </connections>
+  <background>
+    <rect x="0" y="0" w="120" h="60" rounded="1" arcsize="20"/>
+    <fillcolor color="#DC2626"/>
+    <fillstroke/>
+  </background>
+  <foreground>
+    <!-- 左侧图标区域 -->
+    <save/>
+    <rect x="4" y="4" w="52" h="52" rounded="1" arcsize="16"/>
+    <fillcolor color="#B91C1C"/>
+    <fillstroke/>
+    <restore/>
+    <!-- 感叹号图标 -->
+    <text str="!" x="20" y="30" align="center" valign="middle" fontsize="20" style="1">
+      <fontcolor color="#FFFFFF"/>
+    </text>
+    <!-- 标签 -->
+    <text str="%idx1_name%" x="60" y="30" align="center" valign="middle" placeholders="1">
+      <font size="11" style="1"/>
+      <fontcolor color="#FFFFFF"/>
+    </text>
+  </foreground>
+</shape>
+
+</shapes>

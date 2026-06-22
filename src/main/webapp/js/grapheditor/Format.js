@@ -242,7 +242,7 @@ Format.prototype.immediateRefresh = function()
 				}
 			}
 		});
-		
+
 		mxEvent.addListener(elt, 'click', clickHandler);
 
 		var currentIndex = (containsLabel) ? this.labelIndex :
@@ -303,8 +303,23 @@ Format.prototype.immediateRefresh = function()
 	}
 	else
 	{
-		var label2 = label.cloneNode(false);
-		var label3 = label2.cloneNode(false);
+		var label0 = label.cloneNode(false); // Data
+		var label2 = label.cloneNode(false); // Text
+		var label3 = label2.cloneNode(false); // Arrange
+
+		// Data
+		var title = document.createElement('div');
+		mxUtils.write(title, mxResources.get('properties'));
+		label0.appendChild(title);
+		label0.setAttribute('title', mxResources.get('properties'));
+		div.appendChild(label0);
+
+		var dataPanel = div.cloneNode(false);
+		dataPanel.style.display = 'none';
+		this.panels.push(new DataFormatPanel(this, ui, dataPanel));
+		this.container.appendChild(dataPanel);
+
+		addClickHandler(label0, dataPanel, idx++, true);
 		
 		// Style
 		if (ss.cells.length > 0)
@@ -356,7 +371,7 @@ Format.prototype.immediateRefresh = function()
 			label2.style.display = 'none';
 		}
 		
-		addClickHandler(label3, arrangePanel, idx++, true);
+		addClickHandler(label3, arrangePanel, idx++, false);
 	}
 	
 	div.className = 'geFormatTitleContainer';
@@ -6144,6 +6159,7 @@ StyleFormatPanel.prototype.addEffects = function(div)
 				}
 			}
 		}
+
 	});
 	
 	graph.getModel().addListener(mxEvent.CHANGE, listener);
@@ -7356,4 +7372,331 @@ DiagramFormatPanel.prototype.destroy = function()
 		this.editorUi.removeListener(this.gridEnabledListener);
 		this.gridEnabledListener = null;
 	}
+};
+/**
+ * Panel for inline editing of cell data/attributes.
+ */
+DataFormatPanel = function(format, editorUi, container)
+{
+	BaseFormatPanel.apply(this, arguments);
+	this.init();
+};
+
+mxUtils.extend(DataFormatPanel, BaseFormatPanel);
+
+DataFormatPanel.prototype.init = function()
+{
+	var graph = this.editorUi.editor.graph;
+
+	this.refresh();
+
+	// Re-render when model changes externally (undo/redo, etc.)
+	var self = this;
+	this.changeListener = function()
+	{
+		if (self.container.style.display != 'none')
+		{
+			self.refresh();
+		}
+	};
+	graph.getModel().addListener(mxEvent.CHANGE, this.changeListener);
+};
+
+DataFormatPanel.prototype.refresh = function()
+{
+	var ui = this.editorUi;
+	var graph = ui.editor.graph;
+	var cell = graph.getSelectionCell();
+
+	if (cell == null) return;
+
+	this.container.innerHTML = '';
+
+	var value = graph.getModel().getValue(cell);
+
+	// Convert to XML node if it's a primitive
+	if (!mxUtils.isNode(value))
+	{
+		var doc = mxUtils.createXmlDocument();
+		var obj = doc.createElement('object');
+		obj.setAttribute('label', value || '');
+		value = obj;
+	}
+
+	// Read metaData style for editable flags
+	var meta = {};
+	try
+	{
+		var temp = mxUtils.getValue(graph.getCurrentCellStyle(cell), 'metaData', null);
+		if (temp != null)
+		{
+			meta = JSON.parse(temp);
+		}
+	}
+	catch (e) {}
+
+	var style = graph.getCellStyle(cell);
+	var isLayer = graph.getModel().getParent(cell) == graph.getModel().getRoot();
+
+	// Collect attributes (same filtering as EditDataDialog)
+	var attrs = [];
+	for (var i = 0; i < value.attributes.length; i++)
+	{
+		var name = value.attributes[i].nodeName;
+		if ((name != 'label' || style['metaEdit'] == '1' ||
+			Graph.translateDiagram || isLayer) &&
+			name != 'placeholders')
+		{
+			attrs.push({name: name, value: value.attributes[i].nodeValue});
+		}
+	}
+
+	// Sort: label last, rest alphabetical
+	attrs.sort(function(a, b)
+	{
+		if (a.name == 'label') return 1;
+		if (b.name == 'label') return -1;
+		return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+	});
+
+	// ID display
+	var id = (typeof EditDataDialog !== 'undefined' &&
+		EditDataDialog.getDisplayIdForCell != null) ?
+		EditDataDialog.getDisplayIdForCell(ui, cell) : null;
+
+	// Build attribute table
+	var table = document.createElement('table');
+	table.style.width = '100%';
+	table.style.borderCollapse = 'collapse';
+
+	if (id != null)
+	{
+		var row = table.insertRow();
+		var idNameCell = row.insertCell();
+		idNameCell.style.width = '30%';
+		idNameCell.style.fontSize = '11px';
+		idNameCell.style.verticalAlign = 'top';
+		idNameCell.style.padding = '4px 2px';
+		mxUtils.write(idNameCell, mxResources.get('id') + ':');
+
+		var idValueCell = row.insertCell();
+		idValueCell.style.fontSize = '11px';
+		idValueCell.style.padding = '4px 2px';
+		mxUtils.write(idValueCell, id);
+	}
+
+	for (var i = 0; i < attrs.length; i++)
+	{
+		this.addAttributeRow(table, attrs[i].name, attrs[i].value, cell);
+	}
+
+	this.container.appendChild(table);
+
+	// Add property section
+	this.addAddPropertySection(cell);
+
+	// Placeholders checkbox
+	if (graph.getModel().isVertex(cell) || graph.getModel().isEdge(cell))
+	{
+		this.addPlaceholdersOption(cell);
+	}
+	
+};
+
+DataFormatPanel.prototype.addAttributeRow = function(table, name, val, cell)
+{
+	var ui = this.editorUi;
+	var graph = ui.editor.graph;
+
+	var row = table.insertRow();
+
+	var nameCell = row.insertCell();
+	nameCell.style.width = '30%';
+	nameCell.style.fontSize = '11px';
+	nameCell.style.verticalAlign = 'top';
+	nameCell.style.padding = '4px 2px';
+	mxUtils.write(nameCell, name + ':');
+
+	var valueCell = row.insertCell();
+	valueCell.style.padding = '2px';
+	valueCell.style.position = 'relative';
+
+	var textarea = document.createElement('textarea');
+	textarea.style.width = '100%';
+	textarea.style.boxSizing = 'border-box';
+	textarea.style.resize = 'vertical';
+	textarea.style.minHeight = '20px';
+	textarea.value = val;
+	textarea.setAttribute('rows', (val.indexOf('\n') > 0) ? '3' : '1');
+
+	// Instant write on change
+	mxEvent.addListener(textarea, 'change', mxUtils.bind(this, function()
+	{
+		var currentVal = graph.getModel().getValue(cell);
+		if (!mxUtils.isNode(currentVal)) return;
+
+		var cloned = currentVal.cloneNode(true);
+		cloned.setAttribute(name, textarea.value);
+		graph.getModel().setValue(cell, cloned);
+	}));
+
+	valueCell.appendChild(textarea);
+
+	// Delete button
+	var removeBtn = document.createElement('a');
+	var img = mxUtils.createImage(Dialog.prototype.closeImage);
+	img.style.height = '9px';
+	img.style.fontSize = '9px';
+	img.style.marginBottom = (mxClient.IS_IE11) ? '-1px' : '5px';
+
+	removeBtn.className = 'geButton';
+	removeBtn.setAttribute('title', mxResources.get('delete'));
+	removeBtn.style.position = 'absolute';
+	removeBtn.style.top = '2px';
+	removeBtn.style.right = '2px';
+	removeBtn.style.margin = '0px';
+	removeBtn.style.width = '9px';
+	removeBtn.style.height = '9px';
+	removeBtn.style.cursor = 'pointer';
+	removeBtn.appendChild(img);
+
+	mxEvent.addListener(removeBtn, 'click', function()
+	{
+		var currentVal = graph.getModel().getValue(cell);
+		if (!mxUtils.isNode(currentVal)) return;
+
+		var cloned = currentVal.cloneNode(true);
+		cloned.removeAttribute(name);
+		graph.getModel().setValue(cell, cloned);
+	});
+
+	valueCell.appendChild(removeBtn);
+};
+
+DataFormatPanel.prototype.addAddPropertySection = function(cell)
+{
+	var ui = this.editorUi;
+	var graph = ui.editor.graph;
+
+	var div = document.createElement('div');
+	div.style.display = 'flex';
+	div.style.alignItems = 'center';
+	div.style.marginTop = '8px';
+	div.style.padding = '4px 0';
+
+	var nameInput = document.createElement('input');
+	nameInput.setAttribute('placeholder', mxResources.get('enterPropertyName'));
+	nameInput.setAttribute('type', 'text');
+	nameInput.style.flex = '1';
+	nameInput.style.boxSizing = 'border-box';
+	nameInput.style.padding = '4px';
+	nameInput.style.borderWidth = '1px';
+	nameInput.style.borderStyle = 'solid';
+
+	var addBtn = mxUtils.button(mxResources.get('addProperty'), function()
+	{
+		var name = nameInput.value.trim();
+		if (name.length > 0 && name != 'label' && name.indexOf(':') < 0)
+		{
+			var currentVal = graph.getModel().getValue(cell);
+			if (!mxUtils.isNode(currentVal)) return;
+
+			var cloned = currentVal.cloneNode(true);
+			cloned.setAttribute(name, '');
+			graph.getModel().setValue(cell, cloned);
+
+			// Clear input after add
+			nameInput.value = '';
+			addBtn.setAttribute('disabled', 'disabled');
+		}
+		else
+		{
+			mxUtils.alert(mxResources.get('invalidName'));
+		}
+	});
+
+	addBtn.className = 'geBtn';
+	addBtn.style.marginLeft = '4px';
+	addBtn.style.whiteSpace = 'nowrap';
+
+	mxEvent.addListener(nameInput, 'keypress', function(e)
+	{
+		if (e.keyCode == 13) addBtn.click();
+	});
+
+	mxEvent.addListener(nameInput, 'input', function()
+	{
+		if (nameInput.value.length > 0)
+		{
+			addBtn.removeAttribute('disabled');
+		}
+		else
+		{
+			addBtn.setAttribute('disabled', 'disabled');
+		}
+	});
+
+	// Start with disabled button
+	addBtn.setAttribute('disabled', 'disabled');
+
+	div.appendChild(nameInput);
+	div.appendChild(addBtn);
+	this.container.appendChild(div);
+};
+
+DataFormatPanel.prototype.addPlaceholdersOption = function(cell)
+{
+	var ui = this.editorUi;
+	var graph = ui.editor.graph;
+
+	var div = document.createElement('div');
+	div.style.marginTop = '8px';
+	div.style.padding = '4px 0';
+	div.style.display = 'flex';
+	div.style.alignItems = 'center';
+
+	var input = document.createElement('input');
+	input.setAttribute('type', 'checkbox');
+	input.style.marginRight = '6px';
+
+	var currentVal = graph.getModel().getValue(cell);
+	if (mxUtils.isNode(currentVal) && currentVal.getAttribute('placeholders') == '1')
+	{
+		input.setAttribute('checked', 'checked');
+		input.defaultChecked = true;
+	}
+
+	mxEvent.addListener(input, 'click', function()
+	{
+		var val = graph.getModel().getValue(cell);
+		if (!mxUtils.isNode(val)) return;
+
+		var cloned = val.cloneNode(true);
+		if (input.checked)
+		{
+			cloned.setAttribute('placeholders', '1');
+		}
+		else
+		{
+			cloned.removeAttribute('placeholders');
+		}
+		graph.getModel().setValue(cell, cloned);
+	});
+
+	div.appendChild(input);
+	mxUtils.write(div, mxResources.get('placeholders'));
+	this.container.appendChild(div);
+};
+
+DataFormatPanel.prototype.destroy = function()
+{
+	var graph = this.editorUi.editor.graph;
+
+	if (this.changeListener != null)
+	{
+		graph.getModel().removeListener(this.changeListener);
+		this.changeListener = null;
+	}
+
+	BaseFormatPanel.prototype.destroy.apply(this, arguments);
 };
