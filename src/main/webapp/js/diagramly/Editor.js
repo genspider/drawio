@@ -776,34 +776,36 @@
             },
             onChange: function(graph, value)
             {
-                if (value === true)
+                var cells = graph.getSelectionCells();
+                var constraintKeys = ['movable', 'rotatable', 'cloneable',
+                    'deletable', 'resizable', 'connectable'];
+                
+                graph.model.beginUpdate();
+                try
                 {
-                    var cells = graph.getSelectionCells();
-                    if (cells.length == 1)
+                    if (value == 1)
                     {
-                        var cell = cells[0];
-                        var parent = graph.getModel().getParent(cell);
-                        var parGeo = graph.getCellGeometry(parent);
-                        var geo = graph.getCellGeometry(cell);
-
-                        if (parGeo != null && geo != null && !geo.relative)
+                        // fillChild cells should not be independently
+                        // moved, rotated, cloned, deleted, resized, or connected
+                        for (var k = 0; k < constraintKeys.length; k++)
                         {
-                            graph.getModel().beginUpdate();
-                            try
-                            {
-                                var newGeo = geo.clone();
-                                newGeo.x = 0;
-                                newGeo.y = 0;
-                                newGeo.width = parGeo.width;
-                                newGeo.height = parGeo.height;
-                                graph.getModel().setGeometry(cell, newGeo);
-                            }
-                            finally
-                            {
-                                graph.getModel().endUpdate();
-                            }
+                            graph.setCellStyles(constraintKeys[k], '0', cells);
+                        }
+                        
+                        Editor.prototype.updateFillChildGeometryForCells(graph, cells);
+                    }
+                    else
+                    {
+                        // Remove constraints when fillChild is disabled
+                        for (var k = 0; k < constraintKeys.length; k++)
+                        {
+                            graph.setCellStyles(constraintKeys[k], null, cells);
                         }
                     }
+                }
+                finally
+                {
+                    graph.model.endUpdate();
                 }
             }
         },
@@ -3503,6 +3505,7 @@
 			{
 				editorInit.apply(this, arguments);
 
+				// Updates math typesetting after changes
 				var renderMath = mxUtils.bind(this, function(sender, evt)
 				{
 					if (this.graph.container != null &&
@@ -3514,6 +3517,17 @@
 				
 				this.graph.model.addListener(mxEvent.CHANGE, renderMath);
 				this.graph.addListener(mxEvent.REFRESH, renderMath);
+
+        const renderResize = mxUtils.bind(this, function(sender, evt)
+				{
+					var cells = evt.getProperty('cells');
+					Editor.prototype.updateFillChildGeometryForCells(this.graph, cells);
+				});
+				
+				// Updates fillChild children when their parent resize completes.
+				// Must use CELLS_RESIZED (not CHANGE) to ensure recursiveResize
+				// has already run before we correct fillChild geometry.
+				this.graph.addListener(mxEvent.CELLS_RESIZED, renderResize);
 			};
 			
 			var tags = document.getElementsByTagName('script');
@@ -3527,6 +3541,78 @@
 			}
 		}
 	};
+
+	/**
+	 * Updates the geometry of a fillChild cell to fill the remaining space
+	 * of its parent container, accounting for startSize (header) and margins.
+	 */
+	Editor.prototype.updateFillChildGeometry = function(graph, parent, child)
+	{
+		var parGeo = graph.getCellGeometry(parent);
+		var childGeo = graph.getCellGeometry(child);
+    console.log(graph, parent != null, 'Parent should not be null');
+		
+		if (parGeo == null || childGeo == null || childGeo.relative) return;
+		
+		var parStyle = graph.getCellStyle(parent);
+		var ss = graph.getActualStartSize(parent);
+		var ml = mxUtils.getValue(parStyle, 'marginLeft', 0);
+		var mr = mxUtils.getValue(parStyle, 'marginRight', 0);
+		var mt = mxUtils.getValue(parStyle, 'marginTop', 0);
+		var mb = mxUtils.getValue(parStyle, 'marginBottom', 0);
+		
+		var newGeo = childGeo.clone();
+		newGeo.x = ss.x + ml + 1;
+		newGeo.y = ss.y + mt + 1;
+		newGeo.width = Math.max(0, parGeo.width - ss.x - ss.width - ml - mr) - 1;
+		newGeo.height = Math.max(0, parGeo.height - ss.y - ss.height - mt - mb) - 1;
+		
+		if (newGeo.x != childGeo.x || newGeo.y != childGeo.y ||
+			newGeo.width != childGeo.width || newGeo.height != childGeo.height)
+		{
+			graph.getModel().setGeometry(child, newGeo);
+		}
+	};
+
+  Editor.prototype.updateFillChildGeometryForCells = function(graph, cells) {
+    if (cells == null) return;
+    var model = graph.model;
+    graph.getModel().beginUpdate();
+    try
+    {
+      for (var i = 0; i < cells.length; i++)
+      {
+        var cell = cells[i];
+        
+        if (model.isVertex(cell))
+        {
+          // Case 1: cell is a container — check its children for fillChild
+          for (var j = 0; j < model.getChildCount(cell); j++)
+          {
+            var child = model.getChildAt(cell, j);
+            
+            if (mxUtils.getValue(graph.getCellStyle(child), 'fillChild', '0') == '1')
+            {
+              Editor.prototype.updateFillChildGeometry(graph, cell, child);
+            }
+          }
+          
+          // Case 2: cell itself is a fillChild child — compute from parent
+          var parent = model.getParent(cell);
+          
+          if (parent != null && model.isVertex(parent) &&
+            mxUtils.getValue(graph.getCellStyle(cell), 'fillChild', '0') == '1')
+          {
+            Editor.prototype.updateFillChildGeometry(graph, parent, cell);
+          }
+        }
+      }
+    }
+    finally
+    {
+      graph.getModel().endUpdate();
+    }
+  }
 
 	/**
 	 * Parses line of CSV values according to RFC 4180.
